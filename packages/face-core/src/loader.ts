@@ -1,9 +1,10 @@
 import type { FaceDoc } from './doc.ts';
+import { PACKS_BASE } from './packs.ts';
 import type { Manifest, Part } from './types.ts';
 
 /** Loads part PNGs on demand and caches them. `baseUrl` is where manifest `file` paths live (e.g. "parts/"). */
 /** URL of a part's PNG. Parts loaded from a pack carry `pack`; older single-library manifests use plain `parts/`. */
-export const partUrl = (p: Part, legacyBase = 'parts/') => (p.pack ? `packs/${p.pack}/parts/${p.file}` : legacyBase + p.file);
+export const partUrl = (p: Part, legacyBase = 'parts/') => (p.pack ? `${PACKS_BASE}${p.pack}/parts/${p.file}` : legacyBase + p.file);
 
 export function createPartLoader(manifest: Manifest, baseUrl = 'parts/') {
   const byId = new Map<string, Part>(manifest.parts.map((p) => [p.id, p]));

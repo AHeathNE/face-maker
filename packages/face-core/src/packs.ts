@@ -12,6 +12,9 @@ export interface PackInfo {
 
 const KEY = 'facemaker.packs';
 
+/** Where the packs are served from. The default is next to the page; a deployment with several apps can point elsewhere. */
+export const PACKS_BASE: string = (import.meta as unknown as { env?: { VITE_PACKS_BASE?: string } }).env?.VITE_PACKS_BASE ?? 'packs/';
+
 /** Which packs to use: ?pack=a,b (or ?pack=all) wins, then the last choice, then the first pack. */
 function choose(available: PackInfo[]): string[] {
   const ids = new Set(available.map((p) => p.id));
@@ -29,12 +32,12 @@ function choose(available: PackInfo[]): string[] {
  * the result like a single library, with each part remembering its pack for its image URL and credits.
  */
 export async function loadPacks(): Promise<{ manifest: Manifest; available: PackInfo[]; selected: string[] }> {
-  const available: PackInfo[] = await (await fetch('packs/index.json', { cache: 'no-store' })).json();
+  const available: PackInfo[] = await (await fetch(`${PACKS_BASE}index.json`, { cache: 'no-store' })).json();
   const selected = choose(available);
   const merged: Manifest = { version: 1, parts: [] };
   for (const id of selected) {
     try {
-      const m: Manifest = await (await fetch(`packs/${id}/manifest.json`, { cache: 'no-store' })).json();
+      const m: Manifest = await (await fetch(`${PACKS_BASE}${id}/manifest.json`, { cache: 'no-store' })).json();
       merged.parts.push(...m.parts.map((p) => ({ ...p, pack: id })));
     } catch { /* a pack with no manifest yet is just empty */ }
   }

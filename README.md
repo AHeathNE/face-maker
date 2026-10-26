@@ -36,6 +36,13 @@ or `?pack=historic,modern`), and swap them freely.
 3. `node tools/cutter/headless.mjs --pack <id>` to cut them (needs the cutter server running).
 4. `http://127.0.0.1:5174/review.html?pack=<id>` to check genders and angles.
 
+## Live site
+https://aheathne.github.io/face-maker/ (collage maker at `/collage/`, PS1 head at `/ps1/`).
+
+It is built and deployed by `.github/workflows/pages.yml` on every push to `main`. `npm run build:site` makes the same
+site locally in `./site`: both apps plus the shareable packs, published once and shared. Packs with `"shareable": false`
+are never copied, and the build fails if one would be.
+
 ## Run
 
 ```

@@ -12,6 +12,7 @@
     "cutter": "npm run dev -w @face-maker/cutter",
     "collage": "npm run dev -w @face-maker/collage-2d",
     "ps1": "npm run dev -w @face-maker/ps1-3d",
-    "cut": "node tools/cutter/headless.mjs"
+    "cut": "node tools/cutter/headless.mjs",
+    "build:site": "node scripts/build-site.mjs"
   }
 }

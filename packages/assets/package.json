@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./vite-plugin": "./vite-plugin.ts",
-    "./packs": "./packs.ts"
+    "./packs": "./packs.ts",
+    "./publish": "./publish.ts"
   }
 }

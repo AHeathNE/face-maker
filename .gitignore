@@ -11,3 +11,6 @@ packs/modern/
 # local tool settings
 .claude/
 *.log
+
+# built site
+site/

@@ -1,0 +1,85 @@
+{
+  "id": "historic",
+  "label": "Historic engravings & paintings",
+  "shareable": true,
+  "description": "Public-domain and CC0 portraits from museum and library collections (engravings, Renaissance and Baroque paintings).",
+  "licenses": [
+    "public domain",
+    "pd",
+    "cc0",
+    "cc-zero"
+  ],
+  "eras": [
+    {
+      "id": "engraving",
+      "label": "Engravings (18th\u201319th c.)",
+      "sources": [
+        {
+          "provider": "met",
+          "query": {
+            "q": "portrait",
+            "medium": "Engraving",
+            "dateBegin": 1750,
+            "dateEnd": 1900
+          },
+          "limit": 60
+        },
+        {
+          "provider": "met",
+          "query": {
+            "q": "woman",
+            "medium": "Engraving",
+            "dateBegin": 1750,
+            "dateEnd": 1900
+          },
+          "limit": 40
+        },
+        {
+          "provider": "loc",
+          "query": {
+            "q": "portrait",
+            "fa": "subject:engravings",
+            "dates": "1750/1900"
+          },
+          "limit": 100
+        },
+        {
+          "provider": "wikimedia",
+          "categories": [
+            {
+              "name": "Engraved_portraits_of_men",
+              "gender": "masc",
+              "limit": 100
+            },
+            {
+              "name": "Engraved_portraits_of_women",
+              "gender": "femme",
+              "limit": 100
+            },
+            {
+              "name": "Engravings_of_women",
+              "gender": "femme",
+              "limit": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "baroque-painting",
+      "label": "Renaissance & Baroque paintings",
+      "sources": [
+        {
+          "provider": "met",
+          "query": {
+            "q": "portrait",
+            "departmentId": 11,
+            "dateBegin": 1500,
+            "dateEnd": 1700
+          },
+          "limit": 40
+        }
+      ]
+    }
+  ]
+}

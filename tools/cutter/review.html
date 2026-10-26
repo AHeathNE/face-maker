@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Face Maker – Gender review</title>
+<style>
+  :root { color-scheme: dark; --bg:#17171a; --panel:#222228; --line:#34343c; --fg:#ebe8e1; --dim:#8f8d88; --accent:#4a86c5; --ok:#6fcf97; --warn:#e5a04b; --bad:#d9534f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+  header { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; }
+  select, button { background: #33333b; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  button:hover { background: #3e3e48; }
+  #count { color: var(--dim); margin-left: auto; }
+  #help { color: var(--dim); font-size: 12px; padding: 8px 16px 0; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; padding: 16px; }
+  .card { background: var(--panel); border: 2px solid var(--line); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .card.cur { border-color: #fff8; }
+  .card.review { border-color: #e5a04b66; }
+  .card.cur.review { border-color: var(--warn); }
+  .pic { aspect-ratio: 1; border-radius: 5px; background: #000 center / contain no-repeat; position: relative; }
+  .pic .parts { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 4px; }
+  .pic .parts img { height: 44px; border-radius: 4px; background: #000b; }
+  .title { font-size: 12px; line-height: 1.25; }
+  .title b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title span { color: var(--dim); }
+  .btns { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 4px; }
+  .btns button { padding: 5px 0; font-size: 12px; }
+  .btns button.on { background: #3a6ea5; border-color: var(--accent); }
+  .btns button.x:hover { background: var(--bad); }
+  .views { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .views button { padding: 3px 0; font-size: 11px; color: var(--dim); }
+  .views button.on { background: #5a4a7a; border-color: #8a72b8; color: var(--fg); }
+  .src { font-size: 11px; color: var(--dim); }
+  .src.review { color: var(--warn); }
+  .src.ok { color: var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Review <span id="packName" style="color:#8f8d88;font-weight:400"></span></h1>
+  <select id="filter">
+    <option value="review">Needs review</option>
+    <option value="all">Everything</option>
+    <option value="masc">masc</option>
+    <option value="femme">femme</option>
+    <option value="andro">andro</option>
+  </select>
+  <select id="era"></select>
+  <select id="view">
+    <option value="">any angle</option>
+    <option value="front">front</option>
+    <option value="three-quarter">three-quarter</option>
+    <option value="profile">profile</option>
+  </select>
+  <button id="reload">Reload</button>
+  <span id="count"></span>
+</header>
+<div id="help">Click a button, or use the keyboard on the highlighted card: <b>M</b> masc · <b>F</b> femme · <b>A</b> andro · <b>←/→</b> move · <b>1/2/3</b> front / three-quarter / profile · <b>Del</b> remove source from the library. Changes save instantly and survive re-cutting.</div>
+<main id="grid"></main>
+<script type="module" src="/src/review.ts"></script>
+</body>
+</html>

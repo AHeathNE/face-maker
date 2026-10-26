@@ -1,0 +1,9 @@
+{
+  "name": "@face-maker/assets",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./vite-plugin": "./vite-plugin.ts",
+    "./packs": "./packs.ts"
+  }
+}

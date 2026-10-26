@@ -1,0 +1,17 @@
+{
+  "name": "face-maker",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "tools/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "fetch": "node tools/pipeline/fetch.ts",
+    "cutter": "npm run dev -w @face-maker/cutter",
+    "collage": "npm run dev -w @face-maker/collage-2d",
+    "ps1": "npm run dev -w @face-maker/ps1-3d",
+    "cut": "node tools/cutter/headless.mjs"
+  }
+}

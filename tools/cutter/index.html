@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Face Maker – Cutter</title>
+<style>
+  :root { color-scheme: dark; --bg:#17171a; --panel:#222228; --line:#34343c; --fg:#e8e6e1; --dim:#8d8b86; --ok:#6fcf97; --bad:#eb5757; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+  header { position:sticky; top:0; z-index:5; display:flex; gap:12px; align-items:center; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:15px; margin:0 8px 0 0; }
+  button, select { background:#33333b; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px 12px; font:inherit; cursor:pointer; }
+  button:hover { background:#3d3d47; }
+  button.primary { background:#3a6ea5; border-color:#4a86c5; }
+  #status { color:var(--dim); margin-left:auto; }
+  main { padding:16px; display:grid; gap:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; display:grid; grid-template-columns:200px 1fr; gap:14px; }
+  .card.noface { opacity:.55; }
+  .src canvas { width:200px; display:block; border-radius:4px; background:#000; }
+  .meta { font-size:12px; color:var(--dim); margin-top:6px; }
+  .meta b { color:var(--fg); font-weight:600; }
+  .row { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .parts { display:flex; flex-wrap:wrap; gap:8px; }
+  .part { position:relative; border:2px solid transparent; border-radius:6px; cursor:pointer; padding:4px;
+    background: repeating-conic-gradient(#3a3a42 0% 25%, #2c2c33 0% 50%) 50%/14px 14px; }
+  .part img, .part canvas { display:block; max-width:150px; max-height:110px; }
+  .part span { position:absolute; left:4px; bottom:2px; font-size:10px; background:#000a; padding:0 4px; border-radius:3px; }
+  .part.rejected { opacity:.25; border-color:var(--bad); }
+  .tag { padding:1px 8px; border-radius:10px; font-size:11px; background:#33333b; }
+  .unset { color:var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Face Maker · Cutter</h1>
+  <select id="era"></select>
+  <button id="run" class="primary">Detect &amp; cut</button>
+  <button id="save">Save approved</button>
+  <button id="allm">Set unset → …</button>
+  <span id="status">loading…</span>
+</header>
+<main id="main"></main>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Face Maker 3D</title>
+<link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+<div id="app">
+  <aside id="left">
+    <h1>Face Maker 3D</h1>
+    <button id="randomize" class="primary big">🎲 New face</button>
+    <div class="seed">seed <span id="seed">–</span></div>
+    <div class="row pager">
+      <button id="prev" disabled>◀</button><span id="pagerLabel">random</span><button id="next" disabled>▶</button>
+    </div>
+    <label class="file">Import face .json <input type="file" id="importFile" accept="application/json,.json" hidden /></label>
+
+    <section>
+      <h2>Feature pool</h2>
+      <div id="packs" class="checks"></div>
+      <div id="genders" class="checks"></div>
+      <div id="views" class="checks" title="Head angle of the source portrait"></div>
+      <div id="eras" class="checks"></div>
+      <label class="check"><input type="checkbox" id="consistent" /> one gender per face</label>
+      <label class="check"><input type="checkbox" id="matching" /> matching eyes / brows / ears</label>
+      <label class="row">Wonkiness <input type="range" id="jitter" min="0" max="1.5" step="0.05" value="0.5" /></label>
+    </section>
+
+    <section>
+      <h2>Head</h2>
+      <label class="row">Type <select id="headType"></select></label>
+      <label class="row">Width <input type="range" id="shapeW" min="0.8" max="1.25" step="0.02" value="1" /></label>
+      <label class="row">Height <input type="range" id="shapeH" min="0.85" max="1.25" step="0.02" value="1" /></label>
+      <label class="row">Jaw <input type="range" id="shapeJaw" min="0" max="1" step="0.05" value="0.5" /></label>
+      <label class="row">Nose <input type="range" id="shapeNose" min="0" max="1.6" step="0.05" value="1" /></label>
+      <label class="row">Hair <select id="hairType"></select></label>
+      <label class="row">Hair colour <input type="color" id="backColor" value="#3a2a20" /></label>
+      <label class="row">Hat <select id="hatType"></select></label>
+      <label class="row">Hat colour <input type="color" id="hatColor" value="#c8483c" /></label>
+    </section>
+
+    <section>
+      <h2>PS1 look</h2>
+      <label class="row">Texture <select id="texSize"><option value="64">64</option><option value="128" selected>128</option><option value="256">256</option><option value="512">512</option></select></label>
+      <label class="row">Render <select id="renderH"><option value="180">180p</option><option value="240" selected>240p</option><option value="360">360p</option><option value="720">720p</option></select></label>
+      <label class="row">Vertex wobble <input type="range" id="snap" min="0" max="1" step="0.05" value="1" /></label>
+      <label class="row">Texture warp <input type="range" id="affine" min="0" max="1" step="0.05" value="1" /></label>
+      <label class="row">Colour levels <select id="levels"><option value="0">full</option><option value="32" selected>32</option><option value="16">16</option><option value="8">8</option></select></label>
+      <label class="check"><input type="checkbox" id="paper" /> keep paper-cut edges</label>
+      <label class="check"><input type="checkbox" id="spin" checked /> gentle sway</label>
+    </section>
+
+    <section>
+      <h2>Export</h2>
+      <button id="savePng">Save screenshot</button>
+      <button id="saveTex">Save head texture</button>
+      <div id="status" class="status"></div>
+    </section>
+  </aside>
+  <main id="view"><canvas id="gl"></canvas></main>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

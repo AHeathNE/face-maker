@@ -1,0 +1,13 @@
+node_modules
+dist
+tools/pipeline/cache
+tools/cutter/public/wasm
+tools/cutter/public/models/*.task
+tools/cutter/public/models/*.tflite
+
+# Private packs: never committed or published. Add any pack with "shareable": false here.
+packs/modern/
+
+# local tool settings
+.claude/
+*.log

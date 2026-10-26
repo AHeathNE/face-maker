@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Face Maker</title>
+<link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+<div id="app">
+  <aside id="left">
+    <h1>Face Maker</h1>
+    <button id="randomize" class="primary big">🎲 Randomize</button>
+    <div class="seed">seed <span id="seed">–</span></div>
+
+    <section>
+      <h2>Feature pool</h2>
+      <div id="packs" class="checks"></div>
+      <div id="genders" class="checks"></div>
+      <div id="views" class="checks" title="Head angle of the source portrait"></div>
+      <div id="eras" class="checks"></div>
+      <label class="check"><input type="checkbox" id="consistent" /> one gender per face</label>
+      <label class="check"><input type="checkbox" id="matching" /> matching eyes / brows / ears</label>
+    </section>
+
+    <section>
+      <h2>Wonkiness</h2>
+      <input type="range" id="jitter" min="0" max="1.5" step="0.05" value="0.8" />
+    </section>
+
+    <section>
+      <h2>Cutout look</h2>
+      <label class="check"><input type="checkbox" id="borderOn" checked /> white paper border</label>
+      <label class="row">Width <input type="range" id="outline" min="1" max="14" step="1" value="4" /></label>
+      <label class="row">Colour <input type="color" id="outlineColor" value="#f6f1e4" /></label>
+      <label class="check"><input type="checkbox" id="shadow" checked /> drop shadow</label>
+    </section>
+
+    <section>
+      <h2>Export</h2>
+      <label class="row">Size
+        <select id="exportSize"><option value="512">512</option><option value="1024" selected>1024</option><option value="2048">2048</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="trim" checked /> trim to content</label>
+      <button id="exportPng" class="primary">Save PNG</button>
+      <div class="row batch">
+        <button id="saveJson" title="Save this face (the parts and where they sit) so you can reopen it here or in the 3D app">Save face .json</button>
+        <label class="fileBtn">Open .json<input type="file" id="openJson" accept="application/json,.json" hidden /></label>
+      </div>
+      <div class="row batch">
+        <input type="number" id="batchCount" min="1" max="500" value="12" />
+        <button id="batch">Batch → zip</button>
+      </div>
+      <div id="status" class="status"></div>
+    </section>
+    <button id="credits" class="link">Credits &amp; licenses</button>
+  </aside>
+
+  <main id="stageWrap"><div id="stage"></div></main>
+
+  <aside id="right">
+    <section id="selTools">
+      <h2>Selected part</h2>
+      <div class="tools">
+        <button data-act="flip" title="Mirror left/right">Flip ↔</button>
+        <button data-act="flipy" title="Flip upside down">Flip ↕</button>
+        <button data-act="mirror" title="Add a mirrored copy on the other side of the face">Mirror copy</button>
+        <button data-act="reroll">Swap random</button>
+        <button data-act="dup">Duplicate</button>
+        <button data-act="back">Back</button>
+        <button data-act="front">Front</button>
+        <button data-act="delete" class="danger">Delete</button>
+      </div>
+      <div class="hint">Drag to move · corners to resize / rotate · click a part below to swap or add</div>
+    </section>
+    <nav id="tabs"></nav>
+    <div id="palette"></div>
+  </aside>
+</div>
+<dialog id="creditsDialog"><form method="dialog"><button class="close">Close</button></form><h2>Credits &amp; licenses</h2><div id="creditsBody"></div></dialog>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

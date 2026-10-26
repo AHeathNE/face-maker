@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Face Maker</title>
+<style>
+  :root { color-scheme: dark; --bg:#17171a; --panel:#222228; --line:#34343c; --fg:#ebe8e1; --dim:#8f8d88; --accent:#4a86c5; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 720px; width: 100%; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  p { color: var(--dim); margin: 0 0 24px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  a.card { display: block; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; color: inherit; text-decoration: none; }
+  a.card:hover { border-color: var(--accent); }
+  a.card h2 { margin: 0 0 6px; font-size: 20px; }
+  a.card span { color: var(--dim); font-size: 14px; }
+  footer { margin-top: 28px; color: var(--dim); font-size: 13px; }
+  footer a { color: #8ab4f8; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Face Maker</h1>
+  <p>Cut-out collage faces from public-domain and open-licensed portraits, in the spirit of a Monty Python animation.</p>
+  <div class="cards">
+    <a class="card" href="collage/"><h2>Collage maker</h2><span>Pick, move, resize and swap face parts. Randomize, and export batches as transparent PNGs.</span></a>
+    <a class="card" href="ps1/"><h2>PS1 head</h2><span>Put a collage face on a low-poly, PlayStation-style 3D head, with hair and hats.</span></a>
+  </div>
+  <footer>
+    Every part comes from a work that is public domain or openly licensed; each app has a credits list.
+    Source and licence: <a href="https://github.com/AHeathNE/face-maker">github.com/AHeathNE/face-maker</a>.
+  </footer>
+</main>
+</body>
+</html>

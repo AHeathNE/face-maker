@@ -13,4 +13,4 @@ packs/modern/
 *.log
 
 # built site
-site/
+/site/

@@ -23,7 +23,8 @@ const cacheRoot = join(here, 'cache', packId, 'sources');
 const prefixRe = (names: string[]) => new RegExp('^(' + names.map((l) => l.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[ -]/g, '[ -]?')).join('|') + ')', 'i');
 const LICENSE_OK = prefixRe(pack.licenses);
 const LICENSE_BAD = pack.rejectLicenses?.length ? prefixRe(pack.rejectLicenses) : null;
-const UA = 'FaceMakerPipeline/0.1 (personal art project; public-domain collage parts)';
+// Wikimedia asks automated clients to identify themselves with a way to reach the operator; the repository serves as that.
+const UA = 'FaceMakerPipeline/0.1 (+https://github.com/AHeathNE/face-maker; personal art project, open-licensed collage parts)';
 const MAX_ORIGINAL_BYTES = 12 * 1024 * 1024;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

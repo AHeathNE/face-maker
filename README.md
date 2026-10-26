@@ -59,3 +59,8 @@ face was found are not retried. Face landmarks are remembered per source in `too
 `apps/ps1-3d/src/character.ts` defines a `Character` with anchors (`neck`, hands) and equipment slots
 (`head`, `hair`, `hat`, `body`, `torso`, `legs`, `feet`, `hands`). The head, hair and hat are filled today.
 Bodies, clothes and poses plug in there without changes to the head or face code.
+
+## Licences
+The code is MIT licensed (see `LICENSE`). The cut-out parts are not covered by that licence: each part keeps the licence
+of the work it came from (public domain, CC0 or, in some packs, CC BY). Every part records its source, licence and credit
+in its pack's `manifest.json`, and the apps' credits dialog lists them. Private packs are never published.

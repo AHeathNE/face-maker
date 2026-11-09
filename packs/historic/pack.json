@@ -80,6 +80,92 @@
           "limit": 40
         }
       ]
+    },
+    {
+      "id": "early-photo",
+      "label": "Early photographs (1840s\u20131920s)",
+      "sources": [
+        {
+          "provider": "met",
+          "query": {
+            "q": "portrait",
+            "departmentId": 19,
+            "dateBegin": 1839,
+            "dateEnd": 1930
+          },
+          "limit": 70
+        },
+        {
+          "provider": "met",
+          "query": {
+            "q": "daguerreotype",
+            "departmentId": 19
+          },
+          "limit": 40
+        },
+        {
+          "provider": "met",
+          "query": {
+            "q": "tintype",
+            "departmentId": 19
+          },
+          "limit": 20
+        },
+        {
+          "provider": "loc",
+          "query": {
+            "q": "portrait",
+            "fa": "subject:daguerreotypes",
+            "dates": "1839/1930"
+          },
+          "limit": 60
+        },
+        {
+          "provider": "loc",
+          "query": {
+            "q": "portrait",
+            "fa": "subject:tintypes",
+            "dates": "1839/1930"
+          },
+          "limit": 40
+        },
+        {
+          "provider": "wikimedia",
+          "delayMs": 3000,
+          "categories": [
+            {
+              "name": "Daguerreotype_portraits",
+              "limit": 60
+            },
+            {
+              "name": "19th-century_portrait_photographs_of_men",
+              "gender": "masc",
+              "limit": 60
+            },
+            {
+              "name": "19th-century_portrait_photographs_of_women",
+              "gender": "femme",
+              "limit": 60
+            },
+            {
+              "name": "Tintypes",
+              "limit": 25
+            },
+            {
+              "name": "Cartes_de_visite",
+              "limit": 30
+            },
+            {
+              "name": "Cabinet_cards",
+              "limit": 30
+            },
+            {
+              "name": "Ambrotypes",
+              "limit": 25
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -27,18 +27,30 @@ export class Character {
     handL: new THREE.Object3D(),
     handR: new THREE.Object3D(),
   };
+  /** head, hair and hat hang from here. It starts at the neck anchor, and a body re-parents it onto its neck joint so the head follows poses. */
+  readonly headMount = new THREE.Object3D();
   private equipped = new Map<SlotName, THREE.Object3D>();
 
   constructor() {
     this.root.add(this.anchors.origin);
     this.anchors.origin.add(this.anchors.neck);
+    this.anchors.neck.add(this.headMount);
+  }
+
+  /** Move the head (with its hair and hat) to a different parent, e.g. a body's neck joint, or back to the neck anchor. */
+  mountHeadOn(parent: THREE.Object3D) {
+    if (this.headMount.parent !== parent) parent.add(this.headMount);
   }
 
   /** Put an object in a slot, replacing and disposing whatever was there. Slots attach to the neck for now. */
   setSlot(slot: SlotName, obj: THREE.Object3D | null) {
     const old = this.equipped.get(slot);
     if (old) { old.removeFromParent(); disposeTree(old); this.equipped.delete(slot); }
-    if (obj) { this.anchors.neck.add(obj); this.equipped.set(slot, obj); }
+    if (obj) {
+      const onHead = slot === 'head' || slot === 'hair' || slot === 'hat';
+      (onHead ? this.headMount : this.anchors.neck).add(obj);
+      this.equipped.set(slot, obj);
+    }
   }
 
   equip(w: Wearable) { this.setSlot(w.slot, w.build()); }

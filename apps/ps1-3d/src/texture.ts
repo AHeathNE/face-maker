@@ -14,7 +14,33 @@ function averageColour(img: HTMLImageElement): string {
   return n ? `rgb(${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)})` : '#b08a6a';
 }
 
-export interface TextureOptions { size: number; backColor: string; paperEdges: boolean }
+/** The face's skin colour as #rrggbb, for painting a matching body. */
+export function skinColourHex(doc: FaceDoc, imageOf: ImageOf): string {
+  const base = doc.layers.find((l) => l.slot === 'face');
+  const img = base && imageOf(base.partId);
+  const css = img ? averageColour(img) : 'rgb(176,138,106)';
+  const [r, g, b] = css.match(/\d+/g)!.map(Number);
+  return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('');
+}
+
+/** The average colour of one slot's part (e.g. the collage's hair photo) as #rrggbb, or null if the face has no such part. */
+export function partColourHex(doc: FaceDoc, imageOf: ImageOf, slot: string): string | null {
+  const layer = doc.layers.find((l) => l.slot === slot);
+  const img = layer && imageOf(layer.partId);
+  if (!img) return null;
+  const [r, g, b] = averageColour(img).match(/\d+/g)!.map(Number);
+  return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('');
+}
+
+import { skinNoise, type SkinSurface } from './skinSurface.ts';
+
+export interface TextureOptions {
+  /** texture on the skin colour that fills the head texture */
+  skinSurface?: { style: SkinSurface; amt: number };
+  size: number; backColor: string; paperEdges: boolean;
+  /** collage slots to leave out of the texture (the face layer still sets the skin tone) */
+  exclude?: string[];
+}
 
 /**
  * The head texture: the 2D collage rendered small, over a skin-coloured fill.
@@ -30,8 +56,20 @@ export function buildHeadTexture(doc: FaceDoc, imageOf: ImageOf, o: TextureOptio
   const skin = baseImg ? averageColour(baseImg) : '#b08a6a';
   ctx.fillStyle = skin;
   ctx.fillRect(0, 0, o.size, o.size);
+  if (o.skinSurface && o.skinSurface.style !== 'none') {
+    const img = ctx.getImageData(0, 0, o.size, o.size);
+    for (let y = 0; y < o.size; y++) for (let x = 0; x < o.size; x++) {
+      const n = skinNoise(o.skinSurface.style, o.skinSurface.amt, x, y, doc.seed % 997);
+      const i = (y * o.size + x) * 4;
+      img.data[i] = Math.min(255, img.data[i] * n.f + n.warm * 14);
+      img.data[i + 1] = Math.min(255, img.data[i + 1] * n.f);
+      img.data[i + 2] = Math.min(255, img.data[i + 2] * n.f - n.warm * 8);
+    }
+    ctx.putImageData(img, 0, 0);
+  }
 
-  const art = renderFace(doc, imageOf, { outline: o.paperEdges ? 4 : 0, outlineColor: '#f6f1e4', shadow: false }, { scale: o.size / doc.size });
+  const shown = o.exclude?.length ? { ...doc, layers: doc.layers.filter((l) => !o.exclude!.includes(l.slot)) } : doc;
+  const art = renderFace(shown, imageOf, { outline: o.paperEdges ? 4 : 0, outlineColor: '#f6f1e4', shadow: false }, { scale: o.size / doc.size });
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(art, 0, 0);
 

@@ -15,52 +15,127 @@
     <div class="row pager">
       <button id="prev" disabled>◀</button><span id="pagerLabel">random</span><button id="next" disabled>▶</button>
     </div>
-    <label class="file">Import face .json <input type="file" id="importFile" accept="application/json,.json" hidden /></label>
-
-    <section>
-      <h2>Feature pool</h2>
+    <nav id="tabs" role="tablist">
+      <button data-tab="face" class="on">Face</button><button data-tab="head">Head</button><button data-tab="body">Body</button>
+      <button data-tab="pose">Pose</button><button data-tab="look">Look</button><button data-tab="export">Export</button>
+    </nav>
+    <div id="panels">
+    <section data-panel="face">
+      <h2>Where the face comes from</h2>
+      <label class="file">Import face .json <input type="file" id="importFile" accept="application/json,.json" hidden /></label>
       <div id="packs" class="checks"></div>
       <div id="genders" class="checks"></div>
       <div id="views" class="checks" title="Head angle of the source portrait"></div>
+      <label class="check" title="Draw the cut-out face oval under the features"><input type="checkbox" id="useFaceBase" /> include the face base</label>
+      <label class="check" title="The 3D head has its own hair and ears, so these are normally left out"><input type="checkbox" id="useHairEars" /> include collage hair and ear parts</label>
       <div id="eras" class="checks"></div>
       <label class="check"><input type="checkbox" id="consistent" /> one gender per face</label>
       <label class="check"><input type="checkbox" id="matching" /> matching eyes / brows / ears</label>
       <label class="row">Wonkiness <input type="range" id="jitter" min="0" max="1.5" step="0.05" value="0.5" /></label>
     </section>
 
-    <section>
-      <h2>Head</h2>
+    <section data-panel="head" hidden>
+      <h2>Head, hair and hat</h2>
       <label class="row">Type <select id="headType"></select></label>
       <label class="row">Width <input type="range" id="shapeW" min="0.8" max="1.25" step="0.02" value="1" /></label>
       <label class="row">Height <input type="range" id="shapeH" min="0.85" max="1.25" step="0.02" value="1" /></label>
       <label class="row">Jaw <input type="range" id="shapeJaw" min="0" max="1" step="0.05" value="0.5" /></label>
       <label class="row">Nose <input type="range" id="shapeNose" min="0" max="1.6" step="0.05" value="1" /></label>
       <label class="row">Hair <select id="hairType"></select></label>
+      <label class="check"><input type="checkbox" id="bangs" checked /> bangs (hair over the forehead)</label>
+      <label class="check"><input type="checkbox" id="hairAuto" checked /> hair colour from the collage photo</label>
       <label class="row">Hair colour <input type="color" id="backColor" value="#3a2a20" /></label>
       <label class="row">Hat <select id="hatType"></select></label>
       <label class="row">Hat colour <input type="color" id="hatColor" value="#c8483c" /></label>
     </section>
 
-    <section>
+    <section data-panel="body" hidden>
+      <h2>Body and clothes</h2>
+      <label class="check"><input type="checkbox" id="bodyOn" /> show full body</label>
+      <label class="row">Build <select id="bodyBuild"></select></label>
+      <label class="row">Shoulders <select id="shoulders"></select></label>
+      <label class="row">Height <input type="range" id="bodyHeads" min="5.5" max="7.5" step="0.1" value="6.4" /></label>
+      <label class="row">Outfit <select id="outfit"></select></label>
+      <label class="row">Top <input type="color" id="colTop" value="#b84a4a" /></label>
+      <label class="row">Bottom <input type="color" id="colBottom" value="#3c5a86" /></label>
+      <label class="row">Shoes <input type="color" id="colShoes" value="#e8e4da" /></label>
+      <label class="check"><input type="checkbox" id="skinAuto" checked /> skin colour from the face</label>
+      <label class="check"><input type="checkbox" id="skinWarm" /> warm up grey (engraving) skin</label>
+      <label class="row">Skin <input type="color" id="colSkin" value="#c89a78" /></label>
+    </section>
+
+    <section data-panel="pose" hidden>
+      <h2>Pose</h2>
+      <div class="hint" id="poseNeedsBody">Poses move the full body. <button id="poseBodyOn">Show full body</button></div>
+      <label class="row">Preset <select id="pose"></select></label>
+      <div class="row tools">
+        <button id="poseMirror" title="Swap left and right">Mirror ↔</button>
+        <button id="poseReset" title="Back to the preset">Reset</button>
+        <button id="poseSave" title="Keep this pose in the list">Save as…</button>
+        <button id="poseDelete" title="Remove a saved pose" hidden>Delete</button>
+      </div>
+      <div class="hint">Adjust any joint below. Turn is left/right twist, bend is forward/back, tilt is sideways.</div>
+      <div id="poseJoints"></div>
+    </section>
+
+    <section data-panel="look" hidden>
       <h2>PS1 look</h2>
       <label class="row">Texture <select id="texSize"><option value="64">64</option><option value="128" selected>128</option><option value="256">256</option><option value="512">512</option></select></label>
       <label class="row">Render <select id="renderH"><option value="180">180p</option><option value="240" selected>240p</option><option value="360">360p</option><option value="720">720p</option></select></label>
+      <label class="check"><input type="checkbox" id="wobbleOn" checked /> PS1 wobble (jitter and texture warp)</label>
       <label class="row">Vertex wobble <input type="range" id="snap" min="0" max="1" step="0.05" value="1" /></label>
       <label class="row">Texture warp <input type="range" id="affine" min="0" max="1" step="0.05" value="1" /></label>
       <label class="row">Colour levels <select id="levels"><option value="0">full</option><option value="32" selected>32</option><option value="16">16</option><option value="8">8</option></select></label>
       <label class="check"><input type="checkbox" id="paper" /> keep paper-cut edges</label>
       <label class="check"><input type="checkbox" id="spin" checked /> gentle sway</label>
+      <h2 style="margin-top:10px">Skin surface</h2>
+      <label class="row">Skin texture <select id="skinSurf">
+        <option value="none">flat colour</option>
+        <option value="soft" selected>soft (mottled, fine grain)</option>
+        <option value="grain">grainy</option>
+        <option value="freckled">freckled</option>
+      </select></label>
+      <label class="row">Amount <input type="range" id="skinSurfAmt" min="0.3" max="2" step="0.05" value="1" /></label>
+      <h2 style="margin-top:10px">Engraving-style texture</h2>
+      <label class="row">Skin texture <select id="skinHatch">
+        <option value="auto" selected>auto (grey faces: hatched + speckled)</option>
+        <option value="none">flat</option>
+        <option value="hatch">hatched</option>
+        <option value="speckle">speckled</option>
+        <option value="both">hatched + speckled</option>
+      </select></label>
+      <label class="row">Texture strength <input type="range" id="texStrength" min="0.4" max="1.6" step="0.05" value="1" /></label>
+      <label class="check"><input type="checkbox" id="texClothes" /> texture the clothes too</label>
     </section>
 
-    <section>
+    <section data-panel="export" hidden>
       <h2>Export</h2>
+      <label class="check"><input type="checkbox" id="trimShot" checked /> trim screenshot to the figure</label>
+      <label class="row">Screenshot size <select id="shotScale"><option value="1">native</option><option value="2">2×</option><option value="4" selected>4×</option><option value="8">8×</option></select></label>
       <button id="savePng">Save screenshot</button>
+      <label class="row">Texture size <select id="objTex"><option value="1">native (small)</option><option value="4" selected>4× (crisp)</option><option value="8">8×</option></select></label>
+      <div class="row" style="margin-top:6px"><b>Paper model</b></div>
+      <label class="row">Head width (mm) <input type="number" id="paperWidth" value="120" min="60" max="220" step="5" /></label>
+      <label class="row">Paper <select id="paperType"><option value="plain">plain (bigger tabs)</option><option value="card">cardstock</option></select></label>
+      <label class="check"><input type="checkbox" id="paperHair" checked /> include hair</label>
+      <label class="check"><input type="checkbox" id="paperHat" checked /> include hat</label>
+      <button id="makePaper" class="primary">Make paper model (Letter)…</button>
+      <button id="saveObj">Save model: OBJ + textures (.zip)</button>
+      <label class="row">STL height (mm) <input type="number" id="stlHeight" value="100" min="10" max="600" step="5" /></label>
+      <button id="saveStl">Save model: STL (shape only)</button>
       <button id="saveTex">Save head texture</button>
       <div id="status" class="status"></div>
     </section>
+    </div>
+    <div id="status" class="status"></div>
   </aside>
   <main id="view"><canvas id="gl"></canvas></main>
 </div>
+<dialog id="paperDialog"><form method="dialog"><button class="close">Close</button></form>
+  <h2>Paper model</h2><div id="paperInfo"></div>
+  <div class="row" style="margin:8px 0"><button id="paperPdf" class="primary">Download PDF</button><button id="paperPng">Download PNG pages (zip)</button></div>
+  <div id="paperPages"></div>
+</dialog>
 <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

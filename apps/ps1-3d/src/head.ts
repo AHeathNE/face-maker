@@ -80,6 +80,28 @@ export const PRESETS: HeadPreset[] = [
   },
 ];
 
+// More types drawn from the reference characters
+PRESETS.push(
+  {
+    id: 'kite', label: 'Narrow kite', sides: 8, height: 1.3, hairlineT: 0.9,
+    rings: [
+      { t: 0, hw: 0.05, zf: 0.09, zb: 0.14 }, { t: 0.14, hw: 0.17, zf: 0.2, zb: 0.24 }, { t: 0.32, hw: 0.34, zf: 0.3, zb: 0.36 },
+      { t: 0.54, hw: 0.45, zf: 0.35, zb: 0.43 }, { t: 0.7, hw: 0.48, zf: 0.37, zb: 0.46 }, { t: 0.86, hw: 0.45, zf: 0.33, zb: 0.45 },
+      { t: 0.96, hw: 0.34, zf: 0.24, zb: 0.36 }, { t: 1, hw: 0.2, zf: 0.14, zb: 0.22 },
+    ],
+    nose: { size: 0.5, y: 0.44, width: 0.045 }, ear: { size: 0.75, t: 0.56 }, neck: { rx: 0.15, rz: 0.14 },
+  },
+  {
+    id: 'brute', label: 'Heavy brow', sides: 8, height: 1.2, hairlineT: 0.92,
+    rings: [
+      { t: 0, hw: 0.27, zf: 0.2, zb: 0.24 }, { t: 0.18, hw: 0.4, zf: 0.34, zb: 0.36 }, { t: 0.4, hw: 0.5, zf: 0.41, zb: 0.44 },
+      { t: 0.6, hw: 0.51, zf: 0.5, zb: 0.47 }, { t: 0.76, hw: 0.5, zf: 0.44, zb: 0.48 }, { t: 0.92, hw: 0.42, zf: 0.32, zb: 0.43 },
+      { t: 1, hw: 0.3, zf: 0.2, zb: 0.3 },
+    ],
+    nose: { size: 1.1, y: 0.43, width: 0.085 }, ear: { size: 1.1, t: 0.57 }, neck: { rx: 0.29, rz: 0.25 },
+  },
+);
+
 export const presetById = (id: string) => PRESETS.find((p) => p.id === id) ?? PRESETS[0];
 
 export interface HeadShape {
@@ -146,6 +168,9 @@ export function buildHead(shape: HeadShape, texSize: number): HeadBuild {
 
   const pos: number[] = [];
   const uv: number[] = [];
+  /** which physical part each triangle belongs to (skull, neck, nose, earL, earR): the paper model unfolds each separately */
+  const tags: string[] = [];
+  let tag = 'skull';
   const centre = new THREE.Vector3(0, yOf(0.5), 0);
 
   type Kind = 'face' | 'hair' | 'skin';
@@ -160,6 +185,7 @@ export function buildHead(shape: HeadShape, texSize: number): HeadBuild {
         const t = kind === 'face' ? faceUV(v) : kind === 'hair' ? backUV : skinUV;
         uv.push(t[0], t[1]);
       }
+      tags.push(tag);
     };
     emit(flip ? [a, c, b] : [a, b, c]);
     if (doubleSided) emit(flip ? [a, b, c] : [a, c, b]);
@@ -187,7 +213,8 @@ export function buildHead(shape: HeadShape, texSize: number): HeadBuild {
   }
 
   // neck: a short 8-sided tube under the chin
-  const nr = preset.neck, ny0 = 0, ny1 = yOf(0.02);
+  tag = 'neck';
+  const nr = preset.neck, ny0 = -0.14, ny1 = yOf(0.02); // runs below the neck base so a body's collar overlaps it
   const neckTop: THREE.Vector3[] = [], neckBot: THREE.Vector3[] = [];
   for (let j = 0; j < 8; j++) {
     const a = (2 * Math.PI * j) / 8;
@@ -203,6 +230,7 @@ export function buildHead(shape: HeadShape, texSize: number): HeadBuild {
   }
 
   // nose: a three-sided wedge standing off the front of the face
+  tag = 'nose';
   const frontRing = (t: number) => {
     // front surface depth at height t, from the preset's rings
     const rs = preset.rings;
@@ -232,6 +260,7 @@ export function buildHead(shape: HeadShape, texSize: number): HeadBuild {
   for (const sgn of [-1, 1]) {
     const xs = earRing.r.hw * shape.width * 0.99 * sgn;
     const zc = -0.03;
+    tag = sgn < 0 ? 'earL' : 'earR';
     const a = new THREE.Vector3(xs, ey + eh, zc + 0.05);
     const b = new THREE.Vector3(xs + 0.07 * es * sgn, ey + eh * 0.7, zc - 0.03);
     const c = new THREE.Vector3(xs + 0.06 * es * sgn, ey - eh * 0.7, zc - 0.04);
@@ -243,6 +272,7 @@ export function buildHead(shape: HeadShape, texSize: number): HeadBuild {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geometry.userData.tags = tags;
   geometry.computeVertexNormals(); // non-indexed, so every triangle gets its own flat normal
   return {
     geometry, centreY: yOf(0.5), headTop: yOf(1),

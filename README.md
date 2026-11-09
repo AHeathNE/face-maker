@@ -62,10 +62,15 @@ and run `npm run cut`: every source is re-cut for that slot only, and the other 
 face was found are not retried. Face landmarks are remembered per source in `tools/pipeline/cache/<pack>/landmarks/`
 (including "no face found"), so a partial re-cut skips the slow detection step; delete that folder to detect again.
 
-## 3D app: where the body goes
-`apps/ps1-3d/src/character.ts` defines a `Character` with anchors (`neck`, hands) and equipment slots
-(`head`, `hair`, `hat`, `body`, `torso`, `legs`, `feet`, `hands`). The head, hair and hat are filled today.
-Bodies, clothes and poses plug in there without changes to the head or face code.
+## 3D app
+The head (five-plus faceted types), hair and hat shells, and an optional full body (build, height, painted outfits, poses) are in
+`apps/ps1-3d`. The body is segments on joints (`body.ts`), clothing is painted into a small atlas (`outfit.ts`), poses are joint
+rotations (`poses.ts`). `character.ts` holds the attachment points and equipment slots. Notes on the reference characters that set
+the proportions are in `docs/ps1-reference-notes.md`.
+
+**Export:** *Save model: OBJ + textures* gives a zip with the `.obj`, `.mtl` and PNG textures (upscaled so the pixels stay crisp),
+in the current pose and with the feet on y = 0. *Save model: STL* is shape only (STL has no colour or textures) and is scaled to the
+height you choose in millimetres. The pieces are separate shells and are not guaranteed watertight, so a slicer may need a repair pass.
 
 ## Licences
 The code is MIT licensed (see `LICENSE`). The cut-out parts are not covered by that licence: each part keeps the licence

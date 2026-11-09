@@ -1,6 +1,6 @@
 import { zipSync } from 'fflate';
 import {
-  GENDERS, VIEWS, viewOf, loadPacks, partUrl, renderPackPicker, SLOT_ORDER, canvasToBlob, makeLayer, newLayerId, partsInPool, randomFace, renderFace, rerollLayer,
+  GENDERS, VIEWS, viewOf, relinkFollower, setHairWithFace, syncFollowers, unlinkLayers, loadPacks, partUrl, renderPackPicker, SLOT_ORDER, canvasToBlob, makeLayer, newLayerId, partsInPool, randomFace, renderFace, rerollLayer,
   type FaceDoc, type Gender, type View, type Manifest, type Part, type RandomOptions, type RenderStyle, type Slot,
 } from '@face-maker/face-core';
 import { Editor } from './editor.ts';
@@ -29,6 +29,7 @@ function readOptions(): RandomOptions {
     jitter: Number($<HTMLInputElement>('jitter').value),
     matchingPairs: $<HTMLInputElement>('matching').checked,
     consistentGender: $<HTMLInputElement>('consistent').checked,
+    hairWithFace: $<HTMLInputElement>('hairWithFace').checked,
   };
 }
 function readStyle(): RenderStyle {
@@ -87,17 +88,32 @@ function insertLayer(doc: FaceDoc, layer: FaceDoc['layers'][number]) {
   doc.layers.splice(at, 0, layer);
 }
 
+const hairWithFaceOn = () => $<HTMLInputElement>('hairWithFace').checked;
+const HAIR_LOCKED = 'Hair comes with the face right now. Turn off "keep hair with the face" to choose other hair.';
+
+/** Give the face its own hair (or none, if that photo had no hair part), and say so when there was none. */
+async function pairHair(doc: FaceDoc, faceId: string) {
+  const had = setHairWithFace(doc, manifest, faceId);
+  await ensureImages(doc);
+  status(had ? '' : 'That photo has no hair part, so this face has no hair.');
+}
+
 async function addOrSwap(part: Part) {
+  if (part.slot === 'hair' && hairWithFaceOn() && editor.doc.layers.some((l) => l.slot === 'face')) { status(HAIR_LOCKED); return; }
   await loadPart(part.id);
   const doc = editor.doc;
   const sel = editor.selected;
+  let faceId: string | null = null;
   if (sel && sel.slot === part.slot) {
     sel.partId = part.id;
+    if (part.slot === 'face') faceId = sel.id;
   } else {
     const layer = makeLayer(part, doc.layers.filter((l) => l.slot === part.slot).length, doc.size);
     insertLayer(doc, layer);
     editor.selectedId = layer.id;
+    if (part.slot === 'face') faceId = layer.id;
   }
+  if (faceId && hairWithFaceOn()) await pairHair(doc, faceId);
   editor.setDoc(doc, true);
   editor.select(editor.selectedId);
   persist(); refreshPalette();
@@ -113,21 +129,25 @@ async function tool(act: string) {
     const axis = doc.size / 2;
     if (Math.abs(sel.x - axis) < 12) sel.flipX = !sel.flipX; // already on the centre line: nothing to copy across
     else {
-      const m = { ...sel, id: newLayerId(sel.slot), x: 2 * axis - sel.x, rotation: -sel.rotation, flipX: !sel.flipX };
+      const m = { ...sel, id: newLayerId(sel.slot), x: 2 * axis - sel.x, rotation: -sel.rotation, flipX: !sel.flipX, followId: undefined, rel: undefined };
       doc.layers.splice(i + 1, 0, m);
       editor.selectedId = m.id;
     }
   }
-  else if (act === 'delete') { doc.layers.splice(i, 1); editor.selectedId = null; }
-  else if (act === 'dup') { const c = { ...sel, id: newLayerId(sel.slot), x: sel.x + 30, y: sel.y + 30 }; doc.layers.splice(i + 1, 0, c); editor.selectedId = c.id; }
+  else if (act === 'delete') { unlinkLayers(doc, sel.id); doc.layers.splice(i, 1); editor.selectedId = null; } // hair that followed the face stays, on its own
+  else if (act === 'dup') { const c = { ...sel, id: newLayerId(sel.slot), x: sel.x + 30, y: sel.y + 30, followId: undefined, rel: undefined }; doc.layers.splice(i + 1, 0, c); editor.selectedId = c.id; }
   else if (act === 'back' && i > 0) [doc.layers[i - 1], doc.layers[i]] = [doc.layers[i], doc.layers[i - 1]];
   else if (act === 'front' && i < doc.layers.length - 1) [doc.layers[i + 1], doc.layers[i]] = [doc.layers[i], doc.layers[i + 1]];
   else if (act === 'reroll') {
+    if (sel.slot === 'hair' && sel.followId) { status(HAIR_LOCKED); return; }
     const next = rerollLayer(doc, sel.id, manifest, readOptions(), randomSeed());
+    if (sel.slot === 'face' && hairWithFaceOn()) await pairHair(next, sel.id);
     await ensureImages(next);
     editor.setDoc(next, true); editor.select(sel.id); persist(); refreshPalette();
     return;
   }
+  // flipping or moving a layer carries what is kept with it; changing a follower on its own updates where it sits on its leader
+  if (sel.followId) relinkFollower(doc, sel.id); else syncFollowers(doc, sel.id);
   editor.setDoc(doc, true);
   editor.select(editor.selectedId);
   persist(); refreshPalette();
@@ -212,6 +232,7 @@ function refreshPalette() {
   const pal = $('palette');
   pal.innerHTML = '';
   const list = pool.filter((p) => p.slot === tab);
+  if (tab === 'hair' && hairWithFaceOn() && editor?.doc.layers.some((l) => l.slot === 'face')) { pal.innerHTML = '<div class="empty">Hair is kept with the face. Untick "keep hair with the face" (left) to pick hair on its own.</div>'; return; }
   if (!list.length) { pal.innerHTML = '<div class="empty">No parts for this slot in the current pool.</div>'; return; }
   for (const part of list) {
     const d = document.createElement('div');
@@ -278,13 +299,32 @@ async function init() {
   const first = restore() ?? (manifest.parts.length ? randomFace(manifest, readOptions(), randomSeed()) : { version: 1 as const, size: 1024, seed: 0, layers: [] });
   await ensureImages(first);
   editor = new Editor($('stage'), first, imageOf, readStyle);
-  editor.onEdit = persist;
+  editor.onDrag = (l) => {
+    if (!editor.doc.layers.some((f) => f.followId === l.id)) return;
+    syncFollowers(editor.doc, l.id); // the hair glides along with the face as it is dragged
+    for (const f of editor.doc.layers) if (f.followId === l.id) editor.placeNode(f);
+    editor.stage.batchDraw();
+  };
+  editor.onEdit = () => {
+    const sel = editor.selected;
+    if (sel?.followId) relinkFollower(editor.doc, sel.id);
+    else if (sel && editor.doc.layers.some((f) => f.followId === sel.id)) { syncFollowers(editor.doc, sel.id); editor.rebuild(); }
+    persist();
+  };
   editor.onSelect = (id) => { $('selTools').style.opacity = id ? '1' : '.5'; refreshPalette(); };
   editor.setDoc(first);
   $('seed').textContent = first.seed ? String(first.seed) : '–';
   refreshPalette();
   if (!manifest.parts.length) status('No parts yet — run the cutter and save some approved parts.');
 
+  try { $<HTMLInputElement>('hairWithFace').checked = localStorage.getItem('facemaker.hairWithFace') === '1'; } catch { /* storage unavailable */ }
+  $<HTMLInputElement>('hairWithFace').onchange = async () => {
+    try { localStorage.setItem('facemaker.hairWithFace', hairWithFaceOn() ? '1' : '0'); } catch { /* storage unavailable */ }
+    const doc = editor.doc, face = doc.layers.find((l) => l.slot === 'face');
+    if (hairWithFaceOn() && face) { await pairHair(doc, face.id); editor.setDoc(doc, true); persist(); }
+    else unlinkLayers(doc); // off: keep what is on the canvas, but stop tying the hair to the face
+    refreshPalette(); persist();
+  };
   $('randomize').onclick = randomize;
   $('exportPng').onclick = exportPng;
   $('saveJson').onclick = saveJson;
@@ -293,6 +333,7 @@ async function init() {
   $('credits').onclick = showCredits;
   const syncBorderControls = () => { $<HTMLInputElement>('outline').disabled = $<HTMLInputElement>('outlineColor').disabled = !$<HTMLInputElement>('borderOn').checked; };
   for (const id of ['borderOn', 'outline', 'outlineColor', 'shadow']) $(id).oninput = () => { syncBorderControls(); editor.rebuild(); };
+  syncBorderControls(); // the border width and colour start greyed out, since the border starts off
   document.querySelectorAll<HTMLButtonElement>('#selTools [data-act]').forEach((b) => { b.onclick = () => tool(b.dataset.act!); });
   window.addEventListener('keydown', (e) => {
     if ((e.target as HTMLElement).tagName.match(/INPUT|SELECT|TEXTAREA/)) return;

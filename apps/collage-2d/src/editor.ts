@@ -16,10 +16,12 @@ export class Editor {
   selectedId: string | null = null;
   onSelect: (id: string | null) => void = () => {};
   onEdit: () => void = () => {};
+  /** called continuously while a layer is being dragged, so layers kept with it can follow live */
+  onDrag: (l: Layer) => void = () => {};
 
   constructor(private container: HTMLElement, doc: FaceDoc, private imageOf: ImageOf, private getStyle: () => RenderStyle) {
     this.doc = doc;
-    this.stage = new Konva.Stage({ container, width: container.clientWidth, height: container.clientWidth });
+    this.stage = new Konva.Stage({ container: container as HTMLDivElement, width: container.clientWidth, height: container.clientWidth });
     this.stage.add(this.layer);
     this.layer.add(this.tr);
     this.stage.on('mousedown touchstart', (e) => { if (e.target === this.stage) this.select(null); });
@@ -55,6 +57,7 @@ export class Editor {
       });
       if (style.shadow) node.setAttrs({ shadowColor: SHADOW.color, shadowOffset: { x: SHADOW.dx, y: SHADOW.dy }, shadowBlur: 0, shadowOpacity: 1 });
       node.on('mousedown touchstart', () => this.select(l.id));
+      node.on('dragmove', () => { l.x = node.x(); l.y = node.y(); this.onDrag(l); });
       node.on('dragend', () => { l.x = node.x(); l.y = node.y(); this.onEdit(); });
       node.on('transformend', () => {
         l.w *= node.scaleX(); l.x = node.x(); l.y = node.y(); l.rotation = node.rotation();
@@ -76,6 +79,12 @@ export class Editor {
     const node = this.selectedId ? this.layer.findOne(`#${this.selectedId}`) : null;
     this.tr.nodes(node ? [node] : []);
     this.tr.moveToTop();
+  }
+
+  /** put a layer's on-screen node where the layer says it is (used while a leader is dragged) */
+  placeNode(l: Layer) {
+    const node = this.layer.findOne(`#${l.id}`);
+    if (node) { node.position({ x: l.x, y: l.y }); node.rotation(l.rotation); }
   }
 
   get selected(): Layer | undefined { return this.doc.layers.find((l) => l.id === this.selectedId); }

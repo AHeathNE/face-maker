@@ -218,7 +218,8 @@ const provIdx = args.indexOf('--provider');
 const providerFilter = provIdx >= 0 ? args[provIdx + 1] : null;
 const eraFilter = args.find((a, i) => !a.startsWith('--') && (provIdx < 0 || i !== provIdx + 1) && (packIdx < 0 || i !== packIdx + 1));
 const eras = pack.eras;
-const handlers: Record<string, (era: string, src: any) => Promise<void>> = { met: fetchMet, loc: fetchLoc, wikimedia: fetchWikimedia };
+const fetchLocal = async (era: string, src: any) => { console.log(`[${era}/local] nothing to download: put images in ${src.folder} and run: python3 -I tools/pipeline/import_local.py --pack ${packId}`); };
+const handlers: Record<string, (era: string, src: any) => Promise<void>> = { met: fetchMet, loc: fetchLoc, wikimedia: fetchWikimedia, local: fetchLocal };
 for (const era of eras) {
   if (eraFilter && era.id !== eraFilter) continue;
   for (const src of era.sources) {

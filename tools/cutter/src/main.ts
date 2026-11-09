@@ -64,57 +64,126 @@ const NOSE = [6, 197, 195, 5, 4, 1, 19, 94, 2, 98, 97, 326, 327, 129, 358, 49, 2
 
 // ---------- cutting ----------
 /**
- * Heal-brush fill, in two layers.
- *  1. Low frequencies: a smooth (harmonic) fill grown inward from the clean skin around each region, so no shading from the
- *     removed eyes, nose or mouth can leak in.
- *  2. High frequencies: the fine texture (engraving hatching, paint cracks, grain) of a clean patch of the same face, added on top
- *     and faded out toward the edge so there is no seam.
+ * Makes the face base featureless: eyes, brows, nose and mouth are replaced by plain, evenly lit skin that matches the rest of the face.
+ *  1. Lighting: a smooth surface (a cubic in x and y) is fitted to the clean skin of the whole face, so the fill follows the face's real
+ *     light and shade and carries none of the shadows of the features that were removed.
+ *  2. Edges: whatever small difference remains at the edge of a region is spread inward smoothly, so there is no seam.
+ *  3. Grain: fine noise with the same strength as the face's own grain is added, fading in from the edge, so the fill is not a flat blur.
+ * Nothing is copied from elsewhere on the face, so no stray wrinkles, strands or hatching turn up in odd places.
  */
 function healRegions(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s: number, minX: number, minY: number, regions: Pt[][]) {
   const W = canvas.width, H = canvas.height;
   const img = ctx.getImageData(0, 0, W, H);
   const px = img.data;
 
-  // blurred copy, to split every pixel into low + high frequency
-  const bc = document.createElement('canvas');
-  bc.width = W; bc.height = H;
-  const bctx = bc.getContext('2d', { willReadFrequently: true })!;
-  bctx.filter = `blur(${Math.max(3, Math.round(W / 70))}px)`;
-  bctx.drawImage(canvas, 0, 0);
-  const blur = bctx.getImageData(0, 0, W, H).data;
-
-  const rasterize = (polys: Pt[][], grow = 0): Uint8Array => {
+  const rasterCanvas = (polys: Pt[][], grow = 0): HTMLCanvasElement => {
     const c = document.createElement('canvas');
     c.width = W; c.height = H;
     const g = c.getContext('2d')!;
     g.setTransform(s, 0, 0, s, -minX * s, -minY * s);
     g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineWidth = grow / s; g.lineJoin = 'round';
     for (const p of polys) { smoothPath(g, p); g.fill(); if (grow) g.stroke(); }
-    const d = g.getImageData(0, 0, W, H).data;
+    return c;
+  };
+  const rasterize = (polys: Pt[][], grow = 0): Uint8Array => {
+    const d = rasterCanvas(polys, grow).getContext('2d')!.getImageData(0, 0, W, H).data;
     const m = new Uint8Array(W * H);
     for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 127 ? 1 : 0;
     return m;
   };
   const inFace = new Uint8Array(W * H);
   for (let i = 0; i < inFace.length; i++) inFace[i] = px[i * 4 + 3] > 250 ? 1 : 0;
-  const holeNear = rasterize(regions, Math.max(8, W / 45));
+  // The area around each feature that is replaced: a generous margin, because a feature's shadows and creases reach well past its outline.
+  const margin = Math.max(12, W / 30);
+  const holeMask = rasterCanvas(regions, margin);
+  const holeNear = rasterize(regions, margin);
   const clean = new Uint8Array(W * H);
   for (let i = 0; i < clean.length; i++) clean[i] = inFace[i] && !holeNear[i] ? 1 : 0;
-  // keep patches away from the cut edge too: a pixel is only clean if its neighbours are in the face
   for (let i = W + 1; i < clean.length - W - 1; i++) if (clean[i] && !(inFace[i - 1] && inFace[i + 1] && inFace[i - W] && inFace[i + W])) clean[i] = 0;
 
+  // The smooth lighting image is blurred from CLEAN skin only. If the features were left in, their darkness would leak into the blur
+  // and the fill would come out darker than the skin around it, leaving a visible ring.
+  const sq = document.createElement('canvas');
+  sq.width = W; sq.height = H;
+  const sqx = sq.getContext('2d')!;
+  sqx.drawImage(canvas, 0, 0);
+  sqx.globalCompositeOperation = 'destination-out';
+  sqx.drawImage(holeMask, 0, 0);
+  const bc = document.createElement('canvas');
+  bc.width = W; bc.height = H;
+  const bctx = bc.getContext('2d', { willReadFrequently: true })!;
+  bctx.filter = `blur(${Math.max(4, Math.round(W / 55))}px)`;
+  bctx.drawImage(sq, 0, 0);
+  const blur = bctx.getImageData(0, 0, W, H).data;
+
+  // ----- 1. fit the lighting: a cubic surface through the blurred colours of the clean skin, ignoring outliers
+  const F = 10;
+  const feats = (x: number, y: number) => { const u = (x / W - 0.5) * 2, v = (y / H - 0.5) * 2; return [1, u, v, u * u, u * v, v * v, u * u * u, u * u * v, u * v * v, v * v * v]; };
+  const samples: number[] = [];
+  for (let y = 0; y < H; y += 3) for (let x = 0; x < W; x += 3) if (clean[y * W + x]) samples.push(y * W + x);
+  const fit = (use: number[]) => {
+    const coef = [new Float64Array(F), new Float64Array(F), new Float64Array(F)];
+    if (use.length < 120) { // too little clean skin: fall back to its average colour
+      for (let c = 0; c < 3; c++) { let sum = 0; for (const p of use) sum += blur[p * 4 + c]; coef[c][0] = use.length ? sum / use.length : 128; }
+      return coef;
+    }
+    const A = new Float64Array(F * F);
+    const rhs = [new Float64Array(F), new Float64Array(F), new Float64Array(F)];
+    for (const p of use) {
+      const f = feats(p % W, Math.floor(p / W));
+      for (let i = 0; i < F; i++) {
+        for (let j = 0; j < F; j++) A[i * F + j] += f[i] * f[j];
+        for (let c = 0; c < 3; c++) rhs[c][i] += f[i] * blur[p * 4 + c];
+      }
+    }
+    for (let i = 0; i < F; i++) A[i * F + i] += 1e-3 * use.length; // a little ridge keeps the solve stable
+    for (let c = 0; c < 3; c++) {
+      const M = Float64Array.from(A), r = Float64Array.from(rhs[c]);
+      for (let i = 0; i < F; i++) { // Gaussian elimination
+        let piv = i;
+        for (let k = i + 1; k < F; k++) if (Math.abs(M[k * F + i]) > Math.abs(M[piv * F + i])) piv = k;
+        if (piv !== i) { for (let j = 0; j < F; j++) { const t = M[i * F + j]; M[i * F + j] = M[piv * F + j]; M[piv * F + j] = t; } const t = r[i]; r[i] = r[piv]; r[piv] = t; }
+        const d = M[i * F + i] || 1e-9;
+        for (let k = i + 1; k < F; k++) { const m = M[k * F + i] / d; if (!m) continue; for (let j = i; j < F; j++) M[k * F + j] -= m * M[i * F + j]; r[k] -= m * r[i]; }
+      }
+      for (let i = F - 1; i >= 0; i--) { let v2 = r[i]; for (let j = i + 1; j < F; j++) v2 -= M[i * F + j] * coef[c][j]; coef[c][i] = v2 / (M[i * F + i] || 1e-9); }
+    }
+    return coef;
+  };
+  const evalPoly = (coef: Float64Array[], p: number, c: number) => { const f = feats(p % W, Math.floor(p / W)); let v2 = 0; for (let i = 0; i < F; i++) v2 += coef[c][i] * f[i]; return v2; };
+  let coef = fit(samples);
+  // one robust pass: drop the worst-fitting tenth of the samples (leftover shadows, strands, glasses) and fit again
+  const err = samples.map((p) => Math.abs(blur[p * 4] - evalPoly(coef, p, 0)) + Math.abs(blur[p * 4 + 1] - evalPoly(coef, p, 1)) + Math.abs(blur[p * 4 + 2] - evalPoly(coef, p, 2)));
+  const cut = [...err].sort((a, b) => a - b)[Math.floor(err.length * 0.9)] ?? Infinity;
+  coef = fit(samples.filter((_, i) => err[i] <= cut));
+
+  // ----- grain strength: how much the face's own fine detail varies, per channel
+  const sigma = [0, 0, 0];
+  if (samples.length) {
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (const p of samples) { const d = px[p * 4 + c] - blur[p * 4 + c]; sum += d * d; }
+      sigma[c] = Math.min(10, Math.max(1.2, Math.sqrt(sum / samples.length))) * 0.85;
+    }
+  }
+  const gauss = (x: number, y: number) => {
+    const h1 = Math.abs(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1, h2 = Math.abs(Math.sin(x * 39.346 + y * 11.135) * 24634.6345) % 1;
+    return Math.sqrt(-2 * Math.log(Math.max(1e-6, h1))) * Math.cos(2 * Math.PI * h2);
+  };
+  const grain = (x: number, y: number) => (gauss(x, y) + 0.5 * (gauss(x - 1, y) + gauss(x + 1, y) + gauss(x, y - 1) + gauss(x, y + 1))) / Math.SQRT2;
+
   const done = new Uint8Array(W * H);
-  const dirs = Array.from({ length: 16 }, (_, k) => [Math.cos((k / 16) * Math.PI * 2), Math.sin((k / 16) * Math.PI * 2)]);
-  for (const region of regions) {
-    const m = rasterize([region]);
+  // All the features are filled as ONE area (the union of their shadow zones). Filling them one by one left the edge of one fill
+  // inside the next feature's zone, and that mismatch showed up as dark outlines.
+  for (const once of [0]) {
+    void once;
+    const m = holeNear;
     const pts: number[] = [];
     for (let i = 0; i < m.length; i++) if (m[i] && inFace[i] && !done[i]) pts.push(i);
     if (pts.length < 30) continue;
     const N = pts.length;
     const idx = new Int32Array(W * H).fill(-1);
     pts.forEach((p, k) => { idx[p] = k; });
-
-    // --- layer 1: smooth harmonic fill from the surrounding skin
     const nbrs = [-1, 1, -W, W];
     const links: Int32Array[] = pts.map((p) => {
       const out: number[] = [];
@@ -127,59 +196,35 @@ function healRegions(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, s
       }
       return Int32Array.from(out);
     });
-    const f = [new Float32Array(N), new Float32Array(N), new Float32Array(N)];
+
+    // ----- 2. match the face at the region's edge: the small leftover difference is spread inward, but fades out within a few pixels,
+    //          so the middle of the fill is pure lighting and grain and the shadow of a removed eye cannot linger as a ghost
+    const resid = [new Float32Array(N), new Float32Array(N), new Float32Array(N)];
+    const edgeRes = (q: number, c: number) => blur[q * 4 + c] - evalPoly(coef, q, c);
     for (let c = 0; c < 3; c++) {
-      let avg = 0, cnt = 0;
-      for (let k = 0; k < N; k += 5) for (const q of links[k]) if (idx[q] < 0) { avg += blur[q * 4 + c]; cnt++; }
-      f[c].fill(cnt ? avg / cnt : 128);
-      for (let iter = 0; iter < 450; iter++) {
+      for (let iter = 0; iter < 300; iter++) {
         for (let k = 0; k < N; k++) {
           const L = links[k];
           if (!L.length) continue;
           let sum = 0;
-          for (let t = 0; t < L.length; t++) { const q = L[t], qi = idx[q]; sum += qi >= 0 ? f[c][qi] : blur[q * 4 + c]; }
-          f[c][k] += 1.8 * (sum / L.length - f[c][k]);
+          for (let t = 0; t < L.length; t++) { const q = L[t], qi = idx[q]; sum += qi >= 0 ? resid[c][qi] : edgeRes(q, c); }
+          resid[c][k] += 1.8 * (sum / L.length - resid[c][k]);
         }
       }
     }
-
-    // --- layer 2: fine texture from the nearest clean patch, faded in from the edge
-    // candidate patches to copy texture from, best coverage first; each pixel uses the first one that is valid for it
-    const cands: { dx: number; dy: number; cover: number; r: number }[] = [];
-    for (const r of [0.14, 0.2, 0.27, 0.35, 0.44, 0.54, 0.65]) {
-      for (const [ux, uy] of dirs) {
-        const dx = Math.round(ux * r * W), dy = Math.round(uy * r * H);
-        let ok = 0, n = 0;
-        for (let k = 0; k < N; k += 3) {
-          const x = (pts[k] % W) + dx, y = Math.floor(pts[k] / W) + dy;
-          n++;
-          if (x >= 0 && y >= 0 && x < W && y < H && clean[y * W + x]) ok++;
-        }
-        if (ok / n >= 0.3) cands.push({ dx, dy, cover: ok / n, r });
-      }
-    }
-    cands.sort((a, b) => (b.cover >= 0.95 ? 1 : b.cover) - (a.cover >= 0.95 ? 1 : a.cover) || a.r - b.r);
-    const patches = cands.slice(0, 8);
-    // distance (in pixels) from the region edge, so the texture fades in over ~8px
+    // distance from the region's edge, so the edge match fades out and the grain fades in over a few pixels
     const dist = new Float32Array(N).fill(99);
     for (let k = 0; k < N; k++) if (links[k].some((q) => idx[q] < 0) || links[k].length < 4) dist[k] = 1;
-    for (let pass = 0; pass < 12; pass++) {
+    for (let pass = 0; pass < 14; pass++) {
       for (let k = 0; k < N; k++) for (const q of links[k]) { const qi = idx[q]; if (qi >= 0 && dist[qi] + 1 < dist[k]) dist[k] = dist[qi] + 1; }
     }
+    // ----- 3. write the fill: lighting + edge match + grain
     for (let k = 0; k < N; k++) {
-      const p = pts[k];
-      let hp = [0, 0, 0];
-      for (const b of patches) {
-        const x = (p % W) + b.dx, y = Math.floor(p / W) + b.dy;
-        if (x >= 0 && y >= 0 && x < W && y < H && clean[y * W + x]) {
-          const o = (y * W + x) * 4;
-          hp = [px[o] - blur[o], px[o + 1] - blur[o + 1], px[o + 2] - blur[o + 2]];
-          break;
-        }
-      }
-      const w = Math.min(1, dist[k] / 8);
+      const p = pts[k], x = p % W, y = Math.floor(p / W);
+      const n = grain(x, y) * Math.min(1, dist[k] / 8);
       const o = p * 4;
-      for (let c = 0; c < 3; c++) px[o + c] = Math.max(0, Math.min(255, f[c][k] + hp[c] * w));
+      const edge = Math.exp(-(dist[k] - 1) / 5); // 1 at the very edge, nearly 0 a dozen or so pixels in
+      for (let c = 0; c < 3; c++) px[o + c] = Math.max(0, Math.min(255, evalPoly(coef, p, c) + resid[c][k] * edge + n * sigma[c]));
       done[p] = 1;
     }
   }
@@ -252,13 +297,59 @@ function cutHair(img: CanvasImageSource, lm: Pt[], up: (p: Pt) => Pt, fc: Pt, an
 
   const px = wctx.getImageData(0, 0, HAIR_SIZE, HAIR_SIZE);
   const k = S / mw; // window px per mask px
+  const total = mw * mh;
+
+  // The segmenter also calls specks, wisps and chunks of backdrop "hair". Keep only the connected pieces that belong to the head:
+  // label the pieces, drop any that look like backdrop (they run into two or more edges of the window), and drop tiny ones.
+  const label = new Int32Array(total);
+  const sizes: number[] = [0], edges: number[] = [0]; // edge bits: 1 left, 2 right, 4 top, 8 bottom
+  const stack = new Int32Array(total);
+  let pieces = 0;
+  for (let s0 = 0; s0 < total; s0++) {
+    if (label[s0] || conf[s0] <= HAIR_CONFIDENCE) continue;
+    pieces++;
+    let sp = 0, size = 0, bits = 0;
+    stack[sp++] = s0; label[s0] = pieces;
+    while (sp) {
+      const q = stack[--sp];
+      size++;
+      const x = q % mw, y = (q / mw) | 0;
+      if (x === 0) bits |= 1; if (x === mw - 1) bits |= 2; if (y === 0) bits |= 4; if (y === mh - 1) bits |= 8;
+      if (x > 0 && !label[q - 1] && conf[q - 1] > HAIR_CONFIDENCE) { label[q - 1] = pieces; stack[sp++] = q - 1; }
+      if (x < mw - 1 && !label[q + 1] && conf[q + 1] > HAIR_CONFIDENCE) { label[q + 1] = pieces; stack[sp++] = q + 1; }
+      if (y > 0 && !label[q - mw] && conf[q - mw] > HAIR_CONFIDENCE) { label[q - mw] = pieces; stack[sp++] = q - mw; }
+      if (y < mh - 1 && !label[q + mw] && conf[q + mw] > HAIR_CONFIDENCE) { label[q + mw] = pieces; stack[sp++] = q + mw; }
+    }
+    sizes.push(size); edges.push(bits);
+  }
+  const popcount = (n: number) => (n & 1) + ((n >> 1) & 1) + ((n >> 2) & 1);        // left, right, top only: long hair may reach the bottom
+  const isBackdrop = (c: number) => popcount(edges[c]) >= 2;
+  let biggest = 0;
+  for (let c = 1; c <= pieces; c++) if (!isBackdrop(c)) biggest = Math.max(biggest, sizes[c]);
+  const keep = new Uint8Array(pieces + 1);
+  let keptTotal = 0;
+  for (let c = 1; c <= pieces; c++) {
+    if (!isBackdrop(c) && sizes[c] >= Math.max(biggest * 0.06, total * 0.0004)) { keep[c] = 1; keptTotal += sizes[c]; }
+  }
+  // a head of hair is one main mass: if what is left is mostly shattered fragments, there is no usable hair part here
+  if (!biggest || biggest < keptTotal * 0.7) { mask.close(); result.close(); return null; }
+
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, count = 0;
+  const nearKept = (x: number, y: number) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < mw && yy < mh && keep[label[yy * mw + xx]]) return true;
+    }
+    return false;
+  };
   for (let y = 0; y < mh; y++) {
     for (let x = 0; x < mw; x++) {
       const c = conf[y * mw + x];
       const i = (y * HAIR_SIZE + x) * 4; // window canvas and mask are the same size
-      px.data[i + 3] = c <= 0.3 ? 0 : c >= HAIR_CONFIDENCE + 0.15 ? 255 : Math.round(((c - 0.3) / (HAIR_CONFIDENCE + 0.15 - 0.3)) * 255);
-      if (c > HAIR_CONFIDENCE) {
+      const lab = label[y * mw + x];
+      const inside = lab ? keep[lab] === 1 : c > 0.3 && nearKept(x, y); // soft edge pixels count when they touch a kept piece
+      px.data[i + 3] = !inside || c <= 0.3 ? 0 : c >= HAIR_CONFIDENCE + 0.15 ? 255 : Math.round(((c - 0.3) / (HAIR_CONFIDENCE + 0.15 - 0.3)) * 255);
+      if (inside && c > HAIR_CONFIDENCE) {
         count++;
         const u = up({ x: wx + (x + 0.5) * k, y: wy + (y + 0.5) * k });
         if (u.x < minX) minX = u.x; if (u.x > maxX) maxX = u.x;
@@ -268,9 +359,13 @@ function cutHair(img: CanvasImageSource, lm: Pt[], up: (p: Pt) => Pt, fc: Pt, an
   }
   mask.close(); result.close();
 
-  // Quality gate: enough hair, wide enough to be a head of hair rather than a stray patch.
+  // Quality gate: enough hair, wide enough to be a head of hair rather than a stray patch, and framing the face: it has to reach
+  // well past the face centre on both sides (in the upright frame), otherwise it is a clump of something else in the picture.
   const area = count * k * k;
-  if (area < faceW * faceW * 0.25 || maxX - minX < faceW * 0.7) return null;
+  const faceCx = up(fc).x;
+  if (area < faceW * faceW * 0.25 || maxX - minX < faceW * 0.9) return null;
+  if (minX > faceCx - faceW * 0.3 || maxX < faceCx + faceW * 0.3) return null;
+  if (maxY < fc.y - faceW * 0.2) return null; // hair that ends above the middle of the face cannot be a head of hair
 
   wctx.putImageData(px, 0, 0);
   const pad = faceW * 0.03;
@@ -311,9 +406,9 @@ function cutFace(img: CanvasImageSource, lm: Pt[], entry: Entry) {
   // The base face is cut with eyes, brows, nose and mouth painted out; those come back as separate parts.
   const blankFeatures = {
     regions: [
-      expand(hull(pts(eyeL)), 2.2, 3.6), expand(hull(pts(eyeR)), 2.2, 3.6),
-      expand(hull(pts(browL)), 1.8, 3.1), expand(hull(pts(browR)), 1.8, 3.1),
-      expand(hull(pts(NOSE)), 1.8, 1.55), expand(hull(pts(lips)), 1.9, 2.7),
+      expand(hull(pts(eyeL)), 3.0, 4.0), expand(hull(pts(eyeR)), 3.0, 4.0),
+      expand(hull(pts(browL)), 2.3, 3.4), expand(hull(pts(browR)), 2.3, 3.4),
+      expand(hull(pts(NOSE)), 2.0, 1.7), expand(hull(pts(lips)), 2.1, 2.9),
     ],
   };
   const jobs: Job[] = [

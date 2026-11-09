@@ -2,7 +2,7 @@
 // The dev server must be running on :5174 (npm run cutter).
 //
 //   node tools/cutter/headless.mjs [--pack historic] [--chunk 25] [--era id] [--max-chunks N]
-//                                  [--only face,hair] [--force] [--dry] [--no-log] [--shots dir]
+//                                  [--only face,hair] [--ids era:id,era:id] [--force] [--dry] [--no-log] [--shots dir]
 //
 // Each slot (eye, brow, nose, mouth, ear, face, hair) has its own version below. A source is only re-cut for the
 // slots whose version is newer than the one it was last cut with, so changing how faces are healed re-cuts the faces
@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Bump a slot's number when that slot's cut changes enough that old parts should be redone. Only that slot is redone.
-const SLOT_VERSION = { face: 6, hair: 1, eye: 1, brow: 1, nose: 1, mouth: 1, ear: 1 };
+const SLOT_VERSION = { face: 7, hair: 3, eye: 1, brow: 1, nose: 1, mouth: 1, ear: 1 };
 const ALL = Object.keys(SLOT_VERSION);
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -32,6 +32,7 @@ const logPath = join(here, '../pipeline/cache', pack, 'cut-log.json');
 const only = opt('--only', null)?.split(',').filter(Boolean) ?? null;
 const chunkSize = Number(opt('--chunk', 25));
 const eraFilter = opt('--era', null);
+const idsOnly = opt('--ids', null)?.split(',').filter(Boolean) ?? null; // cut just these sources (era:objectId), e.g. to spot-check a change
 const maxChunks = Number(opt('--max-chunks', Infinity));
 const force = args.includes('--force');
 const dry = args.includes('--dry');
@@ -65,7 +66,7 @@ function staleSlots(entry) {
 
 const sources = await (await fetch(`${base}/api/sources?pack=${pack}`)).json();
 const todo = sources
-  .filter((e) => (!eraFilter || e.era === eraFilter) && !removed.has(keyOf(e)))
+  .filter((e) => (!eraFilter || e.era === eraFilter) && !removed.has(keyOf(e)) && (!idsOnly || idsOnly.includes(keyOf(e))))
   .map((e) => ({ era: e.era, objectId: e.objectId, slots: staleSlots(log[keyOf(e)]) }))
   .filter((e) => e.slots.length);
 

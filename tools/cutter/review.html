@@ -32,6 +32,7 @@
   .views { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
   .views button { padding: 3px 0; font-size: 11px; color: var(--dim); }
   .views button.on { background: #5a4a7a; border-color: #8a72b8; color: var(--fg); }
+  .flags { font-size: 11px; color: #e57373; }
   .src { font-size: 11px; color: var(--dim); }
   .src.review { color: var(--warn); }
   .src.ok { color: var(--ok); }
@@ -46,6 +47,13 @@
     <option value="masc">masc</option>
     <option value="femme">femme</option>
     <option value="andro">andro</option>
+  </select>
+  <select id="flag" title="Automatic checks for sources that are probably not usable portraits">
+    <option value="">no check filter</option>
+    <option value="any">⚑ flagged (any check)</option>
+    <option value="small">⚑ small face (under 150 px)</option>
+    <option value="noeyes">⚑ missing eyes</option>
+    <option value="title">⚑ group / case / view title</option>
   </select>
   <select id="era"></select>
   <select id="view">

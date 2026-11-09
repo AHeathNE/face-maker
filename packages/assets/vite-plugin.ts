@@ -7,7 +7,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { PACKS_ROOT, listPacks } from './packs.ts';
 import { listInfo, publishPacks } from './publish.ts';
 
-const TYPES: Record<string, string> = { '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.txt': 'text/plain' };
+const TYPES: Record<string, string> = { '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.txt': 'text/plain' };
 
 /** Set FACE_MAKER_PACKS=external when the packs are published once for several apps (see scripts/build-site.mjs). */
 export function packsPlugin(opts: { includePrivate?: boolean } = {}): Plugin {

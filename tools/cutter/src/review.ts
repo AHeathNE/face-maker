@@ -1,6 +1,8 @@
 import { viewOf, type Gender, type Manifest, type Part, type View } from '@face-maker/face-core';
 
-interface Group { yaw?: number; view: View; key: string; era: string; objectId: string; parts: Part[]; gender: Gender; source: Part['source']; genderSource: string }
+/** why a source might not be a usable portrait */
+const GROUP_TITLE = /\b(case|cover|landscape|view|house|street|church|building|bridge|river|horse|ship|boat|train|town|garden|monument|ruins?|interior|album|plate|group|family|class|team|crew|couple|brothers|sisters|children|men|women|ladies|gentlemen|soldiers|officers)\b/i;
+interface Group { flags: string[]; yaw?: number; view: View; key: string; era: string; objectId: string; parts: Part[]; gender: Gender; source: Part['source']; genderSource: string }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const grid = $('grid');
@@ -16,11 +18,20 @@ async function load() {
   for (const p of manifest.parts) {
     const key = `${p.era}:${p.source.objectId}`;
     let g = byKey.get(key);
-    if (!g) byKey.set(key, (g = { key, era: p.era, objectId: p.source.objectId, parts: [], gender: p.gender, source: p.source, genderSource: p.genderSource ?? 'default' }));
+    if (!g) {
+      g = { flags: [], key, era: p.era, objectId: p.source.objectId, parts: [], gender: p.gender, source: p.source, genderSource: p.genderSource ?? 'default', view: viewOf(p) };
+      byKey.set(key, g);
+    }
     g.parts.push(p);
   }
   groups = [...byKey.values()];
-  for (const g of groups) { g.yaw = g.parts[0].yaw; g.view = viewOf(g.parts[0]); }
+  for (const g of groups) {
+    g.yaw = g.parts[0].yaw; g.view = viewOf(g.parts[0]);
+    const face = g.parts.find((p) => p.slot === 'face');
+    if (face && face.width < 150) g.flags.push('small');
+    if (g.parts.filter((p) => p.slot === 'eye').length < 2) g.flags.push('noeyes');
+    if (GROUP_TITLE.test(g.source.title)) g.flags.push('title');
+  }
   const eras = [...new Set(groups.map((g) => g.era))];
   const sel = $<HTMLSelectElement>('era');
   const prev = sel.value;
@@ -32,8 +43,8 @@ async function load() {
 
 function visible() {
   const f = $<HTMLSelectElement>('filter').value, era = $<HTMLSelectElement>('era').value;
-  const view = $<HTMLSelectElement>('view').value;
-  return groups.filter((g) => (!era || g.era === era) && (!view || g.view === view) && (f === 'all' || (f === 'review' ? !isReviewed(g) : g.gender === f)));
+  const view = $<HTMLSelectElement>('view').value, flag = $<HTMLSelectElement>('flag').value;
+  return groups.filter((g) => (!era || g.era === era) && (!view || g.view === view) && (!flag || (flag === 'any' ? g.flags.length > 0 : g.flags.includes(flag))) && (f === 'all' || (f === 'review' ? !isReviewed(g) : g.gender === f)));
 }
 
 function render() {
@@ -56,6 +67,7 @@ function render() {
       <div class="views">
         ${(['front', 'three-quarter', 'profile'] as View[]).map((v, n) => `<button data-v="${v}" class="${g.view === v ? 'on' : ''}" title="key ${n + 1}">${v === 'three-quarter' ? '¾' : v}</button>`).join('')}
       </div>
+      ${g.flags.length ? `<div class="flags">⚑ ${g.flags.map((f) => ({ small: 'small face', noeyes: 'missing eyes', title: 'group/case title' } as Record<string, string>)[f]).join(' · ')}</div>` : ''}
       <div class="src ${isReviewed(g) ? 'ok' : 'review'}">${g.yaw !== undefined ? `turn ${g.yaw.toFixed(2)} · ` : ''}${isReviewed(g) ? (g.genderSource === 'manual' ? 'reviewed' : 'from category') : g.genderSource === 'guess' ? 'guessed from title' : 'unlabeled default'}</div>`;
     card.onclick = (e) => {
       cur = i;
@@ -114,7 +126,7 @@ window.addEventListener('keydown', (e) => {
   else if (g && k === '3') setView(g, 'profile');
 });
 
-$('filter').onchange = $('era').onchange = $('view').onchange = () => { cur = 0; render(); };
+$('filter').onchange = $('era').onchange = $('view').onchange = $('flag').onchange = () => { cur = 0; render(); };
 $('reload').onclick = load;
 const esc = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 load();

@@ -27,3 +27,4 @@ packs/*-crunch-*/
 packs/synthetic/
 packs/synthtest/
 tools/pipeline/inbox/
+/apps/ps1-studio/
